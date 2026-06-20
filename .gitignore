@@ -1,0 +1,11 @@
+node_modules
+.next
+out
+.env
+.env.local
+*.log
+.DS_Store
+next-env.d.ts
+
+# runtime store (the learned brain). Remove this line if you want to share it via git.
+data/
