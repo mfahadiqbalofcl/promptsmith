@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import Anthropic from "@anthropic-ai/sdk";
 import { recentNotes, addAiLessons } from "@/lib/store";
 import { DISTILL_SYSTEM, buildDistillUser, parseDistill } from "@/lib/metaprompt";
+import { runCompletion, NoProviderError } from "@/lib/ai/complete";
 import { adminAllowed } from "@/lib/security";
 
 export const runtime = "nodejs";
@@ -11,13 +11,6 @@ export async function POST(req: NextRequest) {
   if (!adminAllowed(req)) {
     return NextResponse.json({ error: "locked", message: "Distill is locked on this instance." }, { status: 403 });
   }
-  const key = process.env.ANTHROPIC_API_KEY;
-  if (!key) {
-    return NextResponse.json(
-      { error: "no_key", message: "AI-distill needs ANTHROPIC_API_KEY. Auto-distilled lessons from issue tags still work without it." },
-      { status: 503 }
-    );
-  }
 
   const notes = await recentNotes(40);
   if (notes.length === 0) {
@@ -25,26 +18,15 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    const client = new Anthropic({ apiKey: key });
-    const model = process.env.PROMPTSMITH_BOOST_MODEL || "claude-sonnet-4-6";
-    const msg = await client.messages.create({
-      model,
-      max_tokens: 1500,
-      system: [{ type: "text", text: DISTILL_SYSTEM, cache_control: { type: "ephemeral" } }],
-      messages: [{ role: "user", content: buildDistillUser(notes) }],
+    const { text } = await runCompletion({
+      system: DISTILL_SYSTEM,
+      user: buildDistillUser(notes),
+      maxTokens: 1500,
     });
-
-    const text = msg.content
-      .filter((b): b is Anthropic.TextBlock => b.type === "text")
-      .map((b) => b.text)
-      .join("");
 
     const candidates = parseDistill(text).map((c) => ({
       text: c.text,
-      scope: {
-        kind: c.scope.kind?.trim() || undefined,
-        framework: c.scope.framework?.trim() || undefined,
-      },
+      scope: { kind: c.scope.kind?.trim() || undefined, framework: c.scope.framework?.trim() || undefined },
     }));
 
     if (candidates.length === 0) {
@@ -54,6 +36,12 @@ export async function POST(req: NextRequest) {
     const lessons = await addAiLessons(candidates);
     return NextResponse.json({ lessons, added: candidates.length });
   } catch (err) {
+    if (err instanceof NoProviderError) {
+      return NextResponse.json(
+        { error: "no_provider", message: "AI-distill needs an AI provider key. Auto-distilled lessons from issue tags still work without it." },
+        { status: 503 }
+      );
+    }
     const message = err instanceof Error ? err.message : "Distill failed.";
     return NextResponse.json({ error: "distill_failed", message }, { status: 502 });
   }

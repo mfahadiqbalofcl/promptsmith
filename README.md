@@ -46,9 +46,11 @@ the compiler routes by `pipeline` automatically.
    Takes the structured intake and assembles a prompt using a **CO-STAR-derived
    structure** (Role · Context · Objective · Aesthetic · Constraints · Output) fused
    with the frontend-design discipline. This alone produces a ~1,000-word expert prompt.
-2. **AI Boost** (optional, `app/api/boost/route.ts`) — if you set `ANTHROPIC_API_KEY`,
-   a "Boost" button hands the compiled prompt to Claude with a meta-prompt that sharpens
-   it *without weakening any constraint*. Works fully without a key; Boost just adds polish.
+2. **AI Boost** (optional, `app/api/boost/route.ts`) — a "Boost" button hands the compiled
+   prompt to an AI that sharpens it *without weakening any constraint*. It runs on a
+   **multi-provider failover chain** (Groq → OpenRouter → Claude) so it stays up on free
+   tiers: when one provider rate-limits or errors, the next takes over automatically. Works
+   fully without any key; Boost just adds polish.
 
 3. **The learning loop** — the system gets better the more it's used:
    - Every forge **auto-saves** to a shared server-side store (`data/promptsmith.json`).
@@ -121,8 +123,10 @@ works out of the box. For a public instance, mind these:
 
 | Env var | Why |
 |---|---|
-| `PROMPTSMITH_ADMIN_TOKEN` | **Set this on any public deploy.** Locks the store-mutating + paid endpoints (add/mute/delete lessons, AI-distill) behind an `x-promptsmith-admin` header. Without it those endpoints are open. |
-| `ANTHROPIC_API_KEY` | Optional — enables AI Boost + AI-distill. If you set it on a public deploy, **also set the admin token** or anyone can run up your bill. |
+| `GROQ_API_KEY` / `OPENROUTER_API_KEY` / `ANTHROPIC_API_KEY` | Enable AI Boost + AI-distill. Set any/all — they form a **failover chain** (tried in order; when one rate-limits or errors, the next takes over). Groq + OpenRouter both have free tiers → free, resilient AI for your devs. |
+| `GROQ_MODEL` / `OPENROUTER_MODEL` / `PROMPTSMITH_BOOST_MODEL` | Optional model overrides (good free-tier defaults built in). |
+| `PROMPTSMITH_AI_ORDER` | Failover order, e.g. `groq,openrouter,anthropic` (default). |
+| `PROMPTSMITH_ADMIN_TOKEN` | **Set on any public deploy.** Locks store-mutating endpoints (add/mute/delete lessons, AI-distill) behind an `x-promptsmith-admin` header. AI Boost stays open for users. |
 | `NEXT_PUBLIC_SITE_URL` | Your deploy URL, for OG/social share cards. |
 
 **Persistence note:** on serverless (Vercel), the JSON store falls back to the temp

@@ -55,6 +55,18 @@ function outputBlock(target: TargetSpec, leadLine: string): string {
   ].join("\n");
 }
 
+// The one-shot contract — what makes a single PROMPTSMITH prompt enough to get
+// the whole thing done, so a developer doesn't burn AI credits iterating.
+function deliveryContractBlock(): string {
+  return [
+    "ONE-SHOT DELIVERY CONTRACT — produce the COMPLETE result in this single response:",
+    "- Deliver everything now, in full: every page, section, and file, production-ready and runnable/usable as-is. The developer is spending limited AI budget — make this one response count so no follow-up is needed.",
+    "- Do NOT ask clarifying questions first and do NOT wait for confirmation. If something is ambiguous, make the best professional assumption and note it in one short line.",
+    "- Do NOT truncate, summarize, or leave placeholders ('...rest unchanged', '// TODO', 'continue in the next message'). If it is long, keep going until it is genuinely finished.",
+    "- Model-agnostic: this must work whether executed by Claude, Gemini, GPT, Cursor, or Google AI Studio.",
+  ].join("\n");
+}
+
 // ── readiness signals ─────────────────────────────────────────────────────────
 export function computeSignals(intake: Intake): CompiledPrompt["signals"] {
   const wordCount = intake.brief.trim().split(/\s+/).filter(Boolean).length;
@@ -193,6 +205,9 @@ export function compile(intake: Intake, lessons: Lesson[] = []): CompiledPrompt 
     domain.pipeline === "engineering"
       ? engineeringBlocks(intake, kind, target, brief)
       : designBlocks(intake, kind, target, brief);
+
+  // One-shot delivery contract — get the whole thing in a single prompt.
+  blocks.push({ label: "Delivery contract", body: deliveryContractBlock() });
 
   // Lessons learned — injected from accumulated feedback (the learning loop).
   if (relevant.length) blocks.push({ label: "Lessons learned", body: renderLessonsBlock(relevant) });

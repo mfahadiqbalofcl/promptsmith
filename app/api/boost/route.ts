@@ -1,19 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
-import Anthropic from "@anthropic-ai/sdk";
 import { BOOST_SYSTEM, buildBoostUser } from "@/lib/metaprompt";
+import { runCompletion, NoProviderError } from "@/lib/ai/complete";
 import type { Intake } from "@/lib/types";
 
 export const runtime = "nodejs";
 
 export async function POST(req: NextRequest) {
-  const key = process.env.ANTHROPIC_API_KEY;
-  if (!key) {
-    return NextResponse.json(
-      { error: "no_key", message: "AI Boost is disabled — no ANTHROPIC_API_KEY set. The deterministic prompt is fully usable as-is." },
-      { status: 503 }
-    );
-  }
-
   let body: { compiledPrompt?: string; intake?: Intake };
   try {
     body = await req.json();
@@ -25,39 +17,26 @@ export async function POST(req: NextRequest) {
   if (!compiledPrompt || !intake) {
     return NextResponse.json({ error: "missing_fields" }, { status: 400 });
   }
-  // Bound the input so a public instance can't be used to forward huge payloads
-  // to the paid API.
+  // Bound input so a public instance can't forward huge payloads to the API.
   if (typeof compiledPrompt !== "string" || compiledPrompt.length > 24000) {
     return NextResponse.json({ error: "too_large", message: "Prompt too large to boost." }, { status: 413 });
   }
 
   try {
-    const client = new Anthropic({ apiKey: key });
-    const model = process.env.PROMPTSMITH_BOOST_MODEL || "claude-sonnet-4-6";
-
-    const msg = await client.messages.create({
-      model,
-      max_tokens: 4096,
-      system: [
-        {
-          type: "text",
-          text: BOOST_SYSTEM,
-          // Cache the system prompt — it's identical on every request.
-          cache_control: { type: "ephemeral" },
-        },
-      ],
-      messages: [{ role: "user", content: buildBoostUser(compiledPrompt, intake) }],
+    const { text, provider, model } = await runCompletion({
+      system: BOOST_SYSTEM,
+      user: buildBoostUser(compiledPrompt, intake),
+      maxTokens: 4096,
     });
-
-    const text = msg.content
-      .filter((b): b is Anthropic.TextBlock => b.type === "text")
-      .map((b) => b.text)
-      .join("")
-      .trim();
-
-    return NextResponse.json({ text });
+    return NextResponse.json({ text, provider, model });
   } catch (err) {
-    const message = err instanceof Error ? err.message : "Unknown error calling the model.";
-    return NextResponse.json({ error: "boost_failed", message }, { status: 502 });
+    if (err instanceof NoProviderError) {
+      return NextResponse.json(
+        { error: "no_provider", message: "AI Boost is disabled — no AI provider key set. The deterministic prompt is fully usable as-is." },
+        { status: 503 }
+      );
+    }
+    const message = err instanceof Error ? err.message : "All AI providers failed.";
+    return NextResponse.json({ error: "boost_failed", message: `Every AI provider failed (rate-limited or down). The prompt below still works. (${message})` }, { status: 502 });
   }
 }

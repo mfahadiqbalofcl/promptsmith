@@ -36,6 +36,8 @@ export default function Page() {
   const [sessions, setSessions] = useState<SessionRecord[]>([]);
   const [stat, setStat] = useState<{ sessions: number; feedback: number; lessons: number; successRate: number | null } | null>(null);
   const [boostReady, setBoostReady] = useState(false);
+  const [providers, setProviders] = useState<string[]>([]);
+  const [boostProvider, setBoostProvider] = useState<string | null>(null);
   const [persistent, setPersistent] = useState(true);
   const [locked, setLocked] = useState(false);
   const [forgeCount, setForgeCount] = useState(0);
@@ -97,6 +99,7 @@ export default function Page() {
     fetch("/api/health").then((r) => r.ok && r.json()).then((d) => {
       if (!d) return;
       setBoostReady(Boolean(d.boost));
+      setProviders(Array.isArray(d.providers) ? d.providers : []);
       setPersistent(d.persistent !== false);
       setLocked(Boolean(d.locked));
     }).catch(() => {});
@@ -160,7 +163,7 @@ export default function Page() {
       const res = await fetch("/api/boost", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ compiledPrompt: compiled, intake }) });
       const data = await res.json();
       if (!res.ok) { setNotice({ kind: "warn", text: data?.message || "AI Boost unavailable. The prompt below is fully usable." }); return; }
-      setCompiled(data.text); setBoosted(true); setCopied(false);
+      setCompiled(data.text); setBoosted(true); setBoostProvider(data.provider ?? null); setCopied(false);
     } catch { setNotice({ kind: "warn", text: "Network error reaching Boost. The prompt below still works." }); }
     finally { setBoosting(false); }
   }
@@ -235,8 +238,8 @@ export default function Page() {
             <span className="tagline">the prompt forge</span>
           </div>
           <div className="top-right">
-            <span className={`chip ${boostReady ? "live" : ""}`} title={boostReady ? "Claude AI Boost is configured" : "Free engine only — add ANTHROPIC_API_KEY to enable AI Boost"}>
-              <span className="dot" /> {boostReady ? "AI Boost · ready" : "free engine"}
+            <span className={`chip ${boostReady ? "live" : ""}`} title={boostReady ? `AI Boost failover chain: ${providers.join(" → ")}` : "Free engine — add GROQ_API_KEY / OPENROUTER_API_KEY to enable AI Boost"}>
+              <span className="dot" /> {boostReady ? `AI Boost · ${providers.join("+") || "ready"}` : "free engine"}
             </span>
             <nav className="nav">
               <button className={view === "forge" ? "on" : ""} onClick={() => setView("forge")} type="button">Forge</button>
@@ -251,7 +254,7 @@ export default function Page() {
           <section className="hero">
             <div className="kicker">layman in · master prompt out</div>
             <h1>Stop prompting like<br />everyone else. Forge it <em>sharp.</em></h1>
-            <p>Describe what you want in plain English. PROMPTSMITH compiles it into an expert-grade prompt — for frontend, Elementor, custom widgets, or WP/Woo plugins — armed with anti-slop or production-WP rulesets, and it learns from your feedback.</p>
+            <p>Describe what you want in plain English. PROMPTSMITH compiles it into one expert-grade prompt that gets the <em>whole thing</em> built in a single shot — a complete website from scratch, a page, a section, an Elementor template, a widget, or a WP/Woo plugin. Armed with anti-slop / production-WP rulesets, tuned to save your AI credits, and it learns from your feedback.</p>
           </section>
 
           {/* DOMAIN SWITCHER */}
@@ -389,7 +392,7 @@ export default function Page() {
                   </div>
 
                   <div className={`prompt-box rise ${boosted ? "boosted" : ""}`} key={forgeCount + (boosted ? "b" : "")}>{compiled}</div>
-                  <div className="meta-line"><span>{wordCount} words</span>{pipeline === "design" ? <span>direction · <b>{direction.name}</b></span> : <span>pipeline · <b>engineering</b></span>}<span>{boosted ? "✦ AI-boosted" : "deterministic"}</span></div>
+                  <div className="meta-line"><span>{wordCount} words</span>{pipeline === "design" ? <span>direction · <b>{direction.name}</b></span> : <span>pipeline · <b>engineering</b></span>}<span>{boosted ? `✦ boosted${boostProvider ? ` · ${boostProvider}` : ""}` : "deterministic"}</span></div>
 
                   <div className="feedback">
                     {!fbOpen && !fbSent && (<button className="fb-open" onClick={() => setFbOpen(true)} type="button">✶ Used this prompt? Tell PROMPTSMITH how it went →</button>)}

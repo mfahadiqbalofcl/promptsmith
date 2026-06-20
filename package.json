@@ -1,6 +1,6 @@
 {
   "name": "promptsmith",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "private": true,
   "description": "Raw layman input in. Master-grade prompt out. A free, open-source prompt compiler that kills AI-slop output across frontend, Elementor, widgets, and WordPress/Woo plugins.",
   "license": "MIT",

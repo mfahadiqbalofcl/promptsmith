@@ -19,6 +19,18 @@ export const FRONTEND_KINDS: KindSpec[] = [
     ],
   },
   {
+    id: "fullsite",
+    label: "Complete website (from scratch)",
+    role: "a senior product designer and front-end engineer who ships entire production websites end-to-end, from concept to the last page",
+    objective: (b) =>
+      `Design and build a COMPLETE, multi-page website from scratch for: ${b}. Deliver the whole site — every page built in full — not a single page and not a fragment.`,
+    structure: [
+      "Plan the full sitemap (home + every inner page the brief implies) and a shared design system — tokens, type scale, components, header, footer, nav — applied consistently across all pages.",
+      "Build EVERY page in full with real, specific content and working navigation between them. No 'coming soon', no stub pages, no lorem.",
+      "Make it responsive across breakpoints, add basic per-page SEO meta, and lay out a clear file/page structure the developer can drop in and run.",
+    ],
+  },
+  {
     id: "section",
     label: "Section / component",
     role: "a senior front-end engineer and interaction designer who builds reusable, polished UI pieces",

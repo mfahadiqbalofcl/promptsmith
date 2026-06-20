@@ -86,7 +86,7 @@ export function buildBoostUser(compiledPrompt: string, intake: Intake): string {
     "Here is the structured prompt to refine. Return the improved version only.",
     "",
     "Original layman brief (for grounding — do not lose its intent):",
-    `"""${intake.brief.trim()}"""`,
+    `"""${(intake?.brief ?? "").trim()}"""`,
     "",
     "Structured prompt to sharpen:",
     `"""`,

@@ -1,17 +1,17 @@
 import { NextResponse } from "next/server";
 import { isPersistent } from "@/lib/store";
 import { isLocked } from "@/lib/security";
+import { availableProviders } from "@/lib/ai/providers";
 
 export const runtime = "nodejs";
 
-// Reports which optional capabilities are live, so the UI can be honest about
-// AI Boost / distill availability, persistence durability, and admin lock —
-// without exposing any secret.
+// Reports which optional capabilities are live so the UI can be honest about AI
+// availability, persistence durability, and admin lock — without exposing secrets.
 export async function GET() {
-  const boost = Boolean(process.env.ANTHROPIC_API_KEY);
+  const providers = availableProviders().map((p) => p.label);
   return NextResponse.json({
-    boost,
-    model: boost ? process.env.PROMPTSMITH_BOOST_MODEL || "claude-sonnet-4-6" : null,
+    boost: providers.length > 0,
+    providers,            // failover chain, in order, e.g. ["Groq","OpenRouter"]
     persistent: isPersistent(),
     locked: isLocked(),
   });
