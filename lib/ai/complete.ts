@@ -1,9 +1,9 @@
 // ── Failover completion ───────────────────────────────────────────────────────
-// One entry point for all AI calls. Walks the available providers in order; on
-// any error (rate limit, 5xx, timeout, bad model) it falls through to the next.
-// Returns the first success with which provider/model served it.
+// One entry point for all AI calls. Walks the available providers (Groq, then
+// OpenRouter) in order; on any error (rate limit, 5xx, timeout, bad model) it
+// falls through to the next. Returns the first success with which provider/model
+// served it. All providers are OpenAI-compatible, so it's one code path.
 
-import Anthropic from "@anthropic-ai/sdk";
 import { availableProviders, modelFor, type Provider } from "./providers";
 
 export class NoProviderError extends Error {
@@ -21,7 +21,7 @@ export interface CompletionResult {
 
 const TIMEOUT_MS = 30_000;
 
-async function callOpenAICompatible(p: Provider, model: string, system: string, user: string, maxTokens: number): Promise<string> {
+async function callProvider(p: Provider, model: string, system: string, user: string, maxTokens: number): Promise<string> {
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), TIMEOUT_MS);
   try {
@@ -30,7 +30,6 @@ async function callOpenAICompatible(p: Provider, model: string, system: string, 
       Authorization: `Bearer ${process.env[p.apiKeyEnv]}`,
     };
     if (p.id === "openrouter") {
-      // OpenRouter asks for these for attribution; harmless elsewhere.
       headers["HTTP-Referer"] = process.env.NEXT_PUBLIC_SITE_URL || "https://promptsmith.vercel.app";
       headers["X-Title"] = "PROMPTSMITH";
     }
@@ -59,20 +58,6 @@ async function callOpenAICompatible(p: Provider, model: string, system: string, 
   }
 }
 
-async function callAnthropic(p: Provider, model: string, system: string, user: string, maxTokens: number): Promise<string> {
-  const client = new Anthropic({ apiKey: process.env[p.apiKeyEnv]!, timeout: TIMEOUT_MS });
-  const msg = await client.messages.create({
-    model,
-    max_tokens: maxTokens,
-    system: [{ type: "text", text: system, cache_control: { type: "ephemeral" } }],
-    messages: [{ role: "user", content: user }],
-  });
-  return msg.content
-    .filter((b): b is Anthropic.TextBlock => b.type === "text")
-    .map((b) => b.text)
-    .join("");
-}
-
 /**
  * Run a completion across the failover chain. Throws NoProviderError if nothing
  * is configured, or the last error if every provider failed.
@@ -86,9 +71,7 @@ export async function runCompletion(opts: { system: string; user: string; maxTok
   for (const p of providers) {
     const model = modelFor(p);
     try {
-      const text = p.type === "anthropic"
-        ? await callAnthropic(p, model, opts.system, opts.user, maxTokens)
-        : await callOpenAICompatible(p, model, opts.system, opts.user, maxTokens);
+      const text = await callProvider(p, model, opts.system, opts.user, maxTokens);
       if (text && text.trim()) return { text: text.trim(), provider: p.label, model };
       lastErr = new Error(`${p.label} returned empty output`);
     } catch (err) {
