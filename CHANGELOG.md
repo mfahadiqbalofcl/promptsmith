@@ -2,16 +2,16 @@
 
 All notable changes to PROMPTSMITH. Format based on [Keep a Changelog](https://keepachangelog.com).
 
-## [1.1.0] — 2026-06-20
+## [1.1.0] - 2026-06-20
 
 ### Added
 - **Multi-provider AI with automatic failover.** AI Boost + AI-distill now run on a
-  failover chain of free providers — **Groq → OpenRouter → Claude** (whichever keys are
+  failover chain of free providers: **Groq → OpenRouter → Claude** (whichever keys are
   set). When one provider rate-limits, errors, or times out, the next takes over
   automatically, so the AI features stay up 24/7 on free tiers. Models are env-overridable
   (`GROQ_MODEL`, `OPENROUTER_MODEL`), order via `PROMPTSMITH_AI_ORDER`.
 - **"Complete website (from scratch)" deliverable.** A new frontend kind that builds an
-  entire multi-page site — full sitemap, shared design system, every page built — not a
+  entire multi-page site (full sitemap, shared design system, every page built), not a
   single page.
 - **One-shot delivery contract** baked into every compiled prompt: deliver the *complete*
   result in a single response (every page/section/file, runnable as-is), no clarifying
@@ -24,7 +24,7 @@ All notable changes to PROMPTSMITH. Format based on [Keep a Changelog](https://k
 - Boost/distill error handling distinguishes "no provider configured" (503, graceful) from
   "all providers failed" (502, prompt still usable).
 
-## [1.0.0] — 2026-06-20
+## [1.0.0] - 2026-06-20
 
 ### Added
 - Initial public release. Free, open-source (MIT) prompt compiler.
